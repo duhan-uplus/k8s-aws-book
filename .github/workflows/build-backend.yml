@@ -53,5 +53,4 @@ jobs:
           ${{ secrets.DOCKERHUB_USERNAME }}/backend-app:1.0.0
           ${{ secrets.DOCKERHUB_USERNAME }}/backend-app:latest
         build-args: |
-          JAR_FILE=build/libs/backend-app-0.0.1-SNAPSHOT.jar
-
+          JAR_FILE=build/libs/backend-app-1.0.0.jar
