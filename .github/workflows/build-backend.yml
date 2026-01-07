@@ -1,0 +1,57 @@
+name: Backend App Build & Docker Push
+
+on:
+  push:
+    branches: [ "master" ] # main 제거하고 master만 남김
+    paths:
+      - 'backend-app/**'
+      - '.github/workflows/build-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./backend-app
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # 1. Java 11 (Amazon Corretto) 설정
+    - name: Set up JDK 11 (Corretto)
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'corretto'
+        cache: 'gradle'
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    # 2. Gradle 빌드 (jar 파일 생성)
+    - name: Build with Gradle
+      run: ./gradlew clean build -x test
+
+    # 3. Docker Hub 로그인
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # 4. Docker 이미지 빌드 및 푸시
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./backend-app
+        file: ./backend-app/Dockerfile
+        push: true
+        # 이미지 태그: master 브랜치이므로 latest 태그도 같이 붙여주면 편합니다
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/backend-app:1.0.0
+          ${{ secrets.DOCKERHUB_USERNAME }}/backend-app:latest
+        build-args: |
+          JAR_FILE=build/libs/backend-app-0.0.1-SNAPSHOT.jar
+
