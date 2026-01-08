@@ -1,0 +1,53 @@
+name: Frontend App Build & Docker Push
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'frontend-app/**'  # 프론트엔드 코드가 바뀔 때만 실행
+      - '.github/workflows/build-frontend.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./frontend-app  # 모든 명령어를 frontend-app 폴더 안에서 실행
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # 1. Node.js 설정 (Nuxt 빌드용)
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'  # Nuxt 2라면 14~16, Nuxt 3라면 18 이상 권장
+        cache: 'npm'
+        cache-dependency-path: frontend-app/package-lock.json
+
+    # 2. 의존성 설치 및 빌드 (dist 폴더 생성)
+    - name: Install dependencies and Generate
+      run: |
+        npm ci  # npm install 보다 빠르고 안전함 (lock파일 기준 설치)
+        npm run generate  # 결과물: dist 폴더 생성
+
+    # 3. Docker Hub 로그인 (기존 시크릿 재사용)
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # 4. Docker 이미지 빌드 및 푸시
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./frontend-app  # 빌드 컨텍스트 (Dockerfile 위치)
+        file: ./frontend-app/Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/frontend-app:1.0.0
+          ${{ secrets.DOCKERHUB_USERNAME }}/frontend-app:latest
+
