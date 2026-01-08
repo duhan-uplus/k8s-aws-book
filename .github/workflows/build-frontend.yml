@@ -19,6 +19,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    # [추가] 0. Python 3.9 설치 (구버전 node-gyp 호환성 해결용)
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
     # 1. Node.js 설정 (Nuxt 빌드용)
     - name: Set up Node.js
       uses: actions/setup-node@v3
