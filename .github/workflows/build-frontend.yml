@@ -23,7 +23,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '16'  # Nuxt 2라면 14~16, Nuxt 3라면 18 이상 권장
+        node-version: '14'  # Nuxt 2라면 14~16, Nuxt 3라면 18 이상 권장
         cache: 'npm'
         cache-dependency-path: frontend-app/package-lock.json
 
