@@ -21,7 +21,7 @@ public class S3FileHandler {
     // 로컬에서는 AmazonS3 객체를 안 쓰므로 필드 제거해도 되지만, 생성자 호환성을 위해 둠
     private final ResourcePatternResolver resolver;
 
-    public S3FileHandler(AmazonS3 amazonS3, ApplicationContext context) {
+    public S3FileHandler(ApplicationContext context) {
         // [중요] S3 Resolver 대신 "로컬 파일 리졸버"로 교체!
         this.resolver = new PathMatchingResourcePatternResolver(context);
     }
