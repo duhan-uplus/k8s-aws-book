@@ -9,8 +9,8 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime
 
 # 2. 로컬 테스트용 CSV 파일 복사 (프로젝트 루트에 이 파일들이 있어야 함)
 RUN mkdir -p /data
-COPY ./sample_location1.csv /data/sample_location1.csv
-COPY ./sample_location2.csv /data/sample_location2.csv
+COPY ./sample_data/normal/sample_location1.csv /data/sample_location1.csv
+COPY ./sample_data/normal/sample_location2.csv /data/sample_location2.csv
 
 # 3. [핵심] 빌드된 JAR 파일 받기
 VOLUME /tmp
