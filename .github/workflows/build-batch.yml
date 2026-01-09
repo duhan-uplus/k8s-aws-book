@@ -10,8 +10,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest  # 기존 성공 방식 유지
-
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./batch-app
@@ -19,8 +18,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    # 1. Java 11 설정 (기존과 동일)
-    - name: Set up JDK 11 (Corretto)
+    # 1. Java 11
+    - name: Set up JDK 11
       uses: actions/setup-java@v3
       with:
         java-version: '11'
@@ -30,16 +29,9 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    # 2. Gradle 빌드 (S3 Mock 테스트 실패 방지 위해 -x test)
+    # 2. Gradle 빌드
     - name: Build with Gradle
       run: ./gradlew clean build -x test
-
-    # [핵심 수정] 빌드된 JAR를 Dockerfile이 찾는 'app.jar' 이름으로 복사!
-    - name: Prepare JAR for Docker
-      run: |
-        echo "Moving built jar to app.jar..."
-        cp build/libs/*.jar app.jar
-        ls -lh app.jar  # 파일 사이즈 확인용 (로그에 찍힘)
 
     # 3. Docker Hub 로그인
     - name: Login to Docker Hub
@@ -48,14 +40,15 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # 4. Docker 이미지 빌드 및 푸시
+    # 4. Docker 빌드 (ARG로 파일명 전달)
     - name: Build and Push Docker Image
       uses: docker/build-push-action@v4
       with:
         context: ./batch-app
         file: ./batch-app/Dockerfile
         push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/batch-app:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/batch-app:${{ github.sha }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/batch-app:latest
+        build-args: |
+          JAR_FILE=build/libs/batch-app-1.0.0.jar
+
 
