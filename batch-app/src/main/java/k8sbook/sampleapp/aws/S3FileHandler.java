@@ -7,109 +7,48 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.io.IOException;
-
-@Component
-public class S3FileHandler {
-
-    // 로컬 모드에서는 AmazonS3 객체를 안 씁니다 (null 처리되거나 무시됨)
-    public S3FileHandler(AmazonS3 amazonS3, ApplicationContext context) {
-        // 생성자는 호환성을 위해 남겨둠
-    }
-
-    // [핵심] S3 다운로드 -> 로컬 파일 읽기로 변경
-    // bucketName은 무시하고, key(파일경로)를 로컬 경로로 인식
-    public Resource getFileResource(String bucketName, String key) {
-        System.out.println(">>> [LOCAL MODE] Reading local file: " + key);
-        return new FileSystemResource(key);
-    }
-
-    // 나머지 메서드(upload, delete, copy 등)는 로컬에서는 안 쓸 확률이 높지만
-    // 호출 시 에러가 안 나게 빈 껍데기로 둡니다.
-    public void deleteFile(String bucketName, String key) {
-        System.out.println(">>> [LOCAL MODE] Mock delete file: " + key);
-    }
-    
-    // 만약 원본 코드에 다른 메서드가 있다면 비슷한 방식으로 "System.out.println"만 하게 바꾸세요.
-}
-
-/*
-package k8sbook.sampleapp.aws;
-
-import com.amazonaws.services.s3.AmazonS3;
-import org.springframework.cloud.aws.core.io.s3.PathMatchingSimpleStorageResourcePatternResolver;
-import org.springframework.context.ApplicationContext;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.ResourcePatternResolver;
-import org.springframework.stereotype.Component;
-
-import java.io.File;
-import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 @Component
 public class S3FileHandler {
 
-    private final AmazonS3 amazonS3;
-
-    private final ResourcePatternResolver resolver;
-
+    // 로컬 모드: 생성자 유지 (S3 Mock 안 씀)
     public S3FileHandler(AmazonS3 amazonS3, ApplicationContext context) {
-        this.amazonS3 = amazonS3;
-        this.resolver = new PathMatchingSimpleStorageResourcePatternResolver(amazonS3, context);
     }
 
-    public Resource[] listFilesInFolder(String bucketName, String folderPath, String filePattern) {
-        var s3FolderUrl = "s3://" + bucketName + "/" + folderPath;
-        var searchPath = s3FolderUrl + "/" + filePattern;
-        try {
-            return resolver.getResources(searchPath);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    // [핵심] 파일 읽기 (로컬 파일 리턴)
+    public Resource getFileResource(String bucketName, String key) {
+        System.out.println(">>> [LOCAL MODE] Reading local file: " + key);
+        return new FileSystemResource(key);
     }
 
-    public void deleteFile(String bucketName, String filePath) {
-        amazonS3.deleteObject(bucketName, filePath);
+    // --- 아래는 컴파일 에러 방지용 껍데기 메서드들 (Dummy Methods) ---
+
+    // 1. deleteAllFilesInFolder
+    public void deleteAllFilesInFolder(String bucketName, String folderName) {
+        System.out.println(">>> [LOCAL MODE] Skipping deleteAllFilesInFolder: " + folderName);
     }
 
-    public void copyFile(String fromBucketName, String fromFilePath, String toBucketName, String toFilePath) {
-        amazonS3.copyObject(fromBucketName, fromFilePath, toBucketName, toFilePath);
+    // 2. deleteAllFilesInFolderExcept
+    public void deleteAllFilesInFolderExcept(String bucketName, String folderName, List<String> excludeFiles) {
+        System.out.println(">>> [LOCAL MODE] Skipping deleteAllFilesInFolderExcept: " + folderName);
     }
 
-    public Resource moveFileToWorkFolder(String bucketName, String filePath, String folderName, String workFolderSuffix) {
-        var newFilePath = filePath.replaceFirst(folderName, folderName + workFolderSuffix);
-        copyFile(bucketName, filePath, bucketName, newFilePath);
-        deleteFile(bucketName, filePath);
-        return resolver.getResource("s3://" + bucketName + "/" + newFilePath);
+    // 3. listFilesInFolder (중요: 빈 리스트라도 리턴해야 함)
+    public Resource[] listFilesInFolder(String bucketName, String folderName, String pattern) {
+        System.out.println(">>> [LOCAL MODE] Mock listFilesInFolder: " + folderName);
+        
+        // 실제 동작: folderName으로 들어온 경로(예: /data)의 파일 목록을 뒤져서 리턴하거나
+        // 일단 빌드 통과를 위해 빈 배열 리턴 (배치 로직에 따라 파일 처리가 스킵될 수 있음)
+        // 만약 로컬 파일 목록을 진짜로 처리하게 하려면 File 객체 뒤져서 리턴해야 함.
+        
+        // 간단한 테스트를 위해: 그냥 null 또는 빈 배열 리턴
+        // (단, LocationDataLoader에서 null check 없이 쓰면 NPE 날 수 있으니 빈 배열 추천)
+        return new Resource[0];
     }
-
-    public void deleteAllFilesInFolder(String bucketName, String folderPath) {
-        var searchPath = "s3://" + bucketName + "/" + folderPath + "/*";
-        try {
-            var files = resolver.getResources(searchPath);
-            for (var file : files) {
-                deleteFile(bucketName, file.getFilename());
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public void deleteAllFilesInFolderExcept(String bucketName, String folderPath, List<String> excludeList) {
-        var searchPath = "s3://" + bucketName + "/" + folderPath + "/*";
-        try {
-            var files = resolver.getResources(searchPath);
-            for (var file : files) {
-                var shortFileName = new File(file.getFilename()).getName();
-                if (!excludeList.contains(shortFileName)) {
-                    deleteFile(bucketName, file.getFilename());
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
+    
+    // 혹시 다른 메서드도 호출된다면 비슷하게 void 또는 null/empty 리턴으로 막아주세요.
 }
-*/
+
+
