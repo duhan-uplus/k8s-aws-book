@@ -1,6 +1,42 @@
 package k8sbook.sampleapp.aws;
 
 import com.amazonaws.services.s3.AmazonS3;
+import org.springframework.context.ApplicationContext;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
+
+import java.io.File;
+import java.io.IOException;
+
+@Component
+public class S3FileHandler {
+
+    // 로컬 모드에서는 AmazonS3 객체를 안 씁니다 (null 처리되거나 무시됨)
+    public S3FileHandler(AmazonS3 amazonS3, ApplicationContext context) {
+        // 생성자는 호환성을 위해 남겨둠
+    }
+
+    // [핵심] S3 다운로드 -> 로컬 파일 읽기로 변경
+    // bucketName은 무시하고, key(파일경로)를 로컬 경로로 인식
+    public Resource getFileResource(String bucketName, String key) {
+        System.out.println(">>> [LOCAL MODE] Reading local file: " + key);
+        return new FileSystemResource(key);
+    }
+
+    // 나머지 메서드(upload, delete, copy 등)는 로컬에서는 안 쓸 확률이 높지만
+    // 호출 시 에러가 안 나게 빈 껍데기로 둡니다.
+    public void deleteFile(String bucketName, String key) {
+        System.out.println(">>> [LOCAL MODE] Mock delete file: " + key);
+    }
+    
+    // 만약 원본 코드에 다른 메서드가 있다면 비슷한 방식으로 "System.out.println"만 하게 바꾸세요.
+}
+
+/*
+package k8sbook.sampleapp.aws;
+
+import com.amazonaws.services.s3.AmazonS3;
 import org.springframework.cloud.aws.core.io.s3.PathMatchingSimpleStorageResourcePatternResolver;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.io.Resource;
@@ -76,3 +112,4 @@ public class S3FileHandler {
     }
 
 }
+*/
