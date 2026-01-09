@@ -1,0 +1,72 @@
+name: Deploy Batch Application (Push to DockerHub)
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'batch-app/**'
+      - '.github/workflows/build-batch.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted  # 로컬 Runner
+
+    defaults:
+      run:
+        working-directory: ./batch-app
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # 1. Java 빌드 (Gradle)
+    - name: Build Batch App
+      run: |
+        chmod +x gradlew
+        ./gradlew clean build -x test
+
+    # 2. Docker Hub 로그인 (GitHub Secrets 사용)
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # 3. Docker Build & Push
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./batch-app
+        file: ./batch-app/Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/batch-app:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/batch-app:${{ github.sha }}
+
+    # 4. Kubernetes 배포
+    - name: Deploy to Kubernetes
+      working-directory: .  # 프로젝트 루트로 이동
+      run: |
+        echo ">>> Deploying Batch Job..."
+        
+        # ConfigMap 적용
+        kubectl apply -f batch-configmap.yaml
+        
+        # CronJob 이미지 업데이트 (Docker Hub 이미지 사용)
+        # sed를 사용해 이미지 태그를 'latest'로 고정하고, PullPolicy를 'Always'로 설정
+        sed -i "s|image: .*batch-app.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/batch-app:latest|" batch-cronjob.yaml
+        sed -i 's|imagePullPolicy: .*|imagePullPolicy: Always|' batch-cronjob.yaml
+        
+        # k8s Secret이 없을 경우를 대비해 생성 시도 (선택 사항)
+        # (이미 존재하면 에러가 날 수 있으니 || true 처리)
+        kubectl create secret docker-registry regcred \
+          --docker-server=https://index.docker.io/v1/ \
+          --docker-username=${{ secrets.DOCKERHUB_USERNAME }} \
+          --docker-password=${{ secrets.DOCKERHUB_TOKEN }} \
+          --docker-email=myemail@example.com \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl apply -f batch-cronjob.yaml
+        
+        echo ">>> Deployment Done!"
+
